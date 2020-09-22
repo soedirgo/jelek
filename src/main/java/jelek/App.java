@@ -3,12 +3,25 @@
  */
 package jelek;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import java.io.FileReader;
+import jelek.lexer.Scanner;
+import jelek.parser.Ast;
+import jelek.parser.parser;
+
 public class App {
-    public String getGreeting() {
-        return "Hello world.";
-    }
+    static Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     public static void main(String[] args) {
-        System.out.println(new App().getGreeting());
+        for (var fileName : args) {
+            try {
+                var p = new parser(new Scanner(new FileReader(fileName)));
+                var program = p.parse().value;
+                System.out.println(fileName + ": " + gson.toJson(program));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
