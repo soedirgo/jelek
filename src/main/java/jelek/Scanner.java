@@ -9,7 +9,7 @@ import java_cup.runtime.*;
 
 // See https://github.com/jflex-de/jflex/issues/222
 @SuppressWarnings("FallThrough")
-public class Scanner implements java_cup.runtime.Scanner {
+class Scanner implements java_cup.runtime.Scanner {
 
   /** This character denotes the end of file. */
   public static final int YYEOF = -1;
@@ -736,7 +736,7 @@ public class Scanner implements java_cup.runtime.Scanner {
    *
    * @param   in  the java.io.Reader to read input from.
    */
-  public Scanner(java.io.Reader in) {
+  Scanner(java.io.Reader in) {
     this.zzReader = in;
   }
 
