@@ -6,9 +6,6 @@ package jelek;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.io.FileReader;
-import jelek.lexer.Scanner;
-import jelek.parser.Ast;
-import jelek.parser.parser;
 
 public class App {
     static Gson gson = new GsonBuilder().setPrettyPrinting().create();

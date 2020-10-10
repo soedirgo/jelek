@@ -1,7 +1,6 @@
-package jelek.lexer;
+package jelek;
 
 import java_cup.runtime.*;
-import jelek.parser.sym;
 
 %%
 
