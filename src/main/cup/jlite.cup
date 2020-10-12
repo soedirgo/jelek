@@ -27,7 +27,6 @@ nonterminal List<Ast.Class> classes;
 nonterminal List<Ast.Method> methods;
 nonterminal List<Ast.Var> params, params_rest, vars, vars_rest, args, args_rest;
 nonterminal Ast.Var var;
-nonterminal Ast.Body body;
 nonterminal Ast.Type type;
 nonterminal String id;
 nonterminal Ast.Method method;
@@ -38,13 +37,18 @@ nonterminal List<Ast.Expr> exprs;
 nonterminal Ast.Expr.BinaryOp bop;
 
 program ::= main_class:main classes:classes
-            {: RESULT = new Ast.Program(main, classes); :}
+            {: classes.add(0, main); RESULT = new Ast.Program(classes); :}
             ;
 
 main_class ::= CLASS CNAME:name LBRACE
-                   VOID MAIN LPAREN params:params RPAREN body:body
+                   VOID MAIN LPAREN params:params RPAREN LBRACE
+                       vars:vars
+                       stmts:stmts
+                       stmt:stmt
+                   RBRACE
                RBRACE
-               {: var method = new Ast.Method("main", new Ast.Type("Void"), params, body);
+               {: stmts.add(stmt);
+                  var method = new Ast.Method("main", new Ast.Type.Void(), params, vars, stmts);
                   var methods = new LinkedList();
                   methods.add(method);
                   RESULT = new Ast.Class(name, new LinkedList(), methods); :}
@@ -58,12 +62,19 @@ classes ::= classes:classes CLASS CNAME:name LBRACE vars:vars methods:methods RB
             {: RESULT = new LinkedList(); :}
             ;
 
-methods ::= type:returnType id:id LPAREN params:params RPAREN body:body methods:methods
-            {: var method = new Ast.Method(id,
+methods ::= type:returnType id:id LPAREN params:params RPAREN LBRACE
+                vars:vars
+                stmts:stmts
+                stmt:stmt
+            RBRACE
+            methods:methods
+            {: stmts.add(stmt);
+               var method = new Ast.Method(id,
                                            returnType,
                                            params,
-                                           body);
-               methods.add(method);
+                                           vars,
+                                           stmts);
+               methods.add(0, method);
                RESULT = methods; :}
             |
             {: RESULT = new LinkedList(); :}
@@ -83,19 +94,19 @@ var ::= type:type id:id
         ;
 
 type ::= INT
-         {: RESULT = new Ast.Type("Int"); :}
+         {: RESULT = new Ast.Type.Int(); :}
          |
          BOOL
-         {: RESULT = new Ast.Type("Bool"); :}
+         {: RESULT = new Ast.Type.Bool(); :}
          |
          STRING
-         {: RESULT = new Ast.Type("String"); :}
+         {: RESULT = new Ast.Type.String(); :}
          |
          VOID
-         {: RESULT = new Ast.Type("Void"); :}
+         {: RESULT = new Ast.Type.Void(); :}
          |
          CNAME:cname
-         {: RESULT = new Ast.Type(cname); :}
+         {: RESULT = new Ast.Type.Class(cname); :}
          ;
 
 id ::= ID:name
@@ -104,11 +115,6 @@ id ::= ID:name
        MAIN
        {: RESULT = "main"; :}
        ;
-
-body ::= LBRACE vars:vars stmts:stmts stmt:stmt RBRACE
-         {: stmts.add(stmt);
-            RESULT = new Ast.Body(vars, stmts); :}
-         ;
 
 vars ::= vars:vars var:var SEMICOLON
          {: vars.add(var); RESULT = vars; :}
@@ -137,14 +143,14 @@ stmt ::= IF LPAREN expr:cond RPAREN LBRACE stmts:thenStmts stmt:thenStmt RBRACE
          PRINTLN LPAREN expr:expr RPAREN SEMICOLON
          {: RESULT = new Ast.Stmt.Println(expr); :}
          |
-         id:id ASSIGN expr:expr SEMICOLON
-         {: RESULT = new Ast.Stmt.Assign(id, expr); :}
+         id:lhs ASSIGN expr:rhs SEMICOLON
+         {: RESULT = new Ast.Stmt.Assign(lhs, rhs); :}
          |
-         atom:atom DOT id:field ASSIGN expr:expr SEMICOLON
-         {: RESULT = new Ast.Stmt.FieldAssign(atom, field, expr); :}
+         atom:lhsExpr DOT id:lhsField ASSIGN expr:rhs SEMICOLON
+         {: RESULT = new Ast.Stmt.FieldAssign(lhsExpr, lhsField, rhs); :}
          |
-         atom:caller LPAREN exprs:args RPAREN SEMICOLON
-         {: RESULT = new Ast.Stmt.Call(caller, args); :}
+         atom:callee LPAREN exprs:args RPAREN SEMICOLON
+         {: RESULT = new Ast.Stmt.Call(callee, args); :}
          |
          RETURN expr:expr SEMICOLON
          {: RESULT = new Ast.Stmt.Return(expr); :}
@@ -190,10 +196,10 @@ expr ::= /* bool */
          {: RESULT = new Ast.Expr.Binary(Ast.Expr.BinaryOp.MINUS, e1, e2); :}
          |
          term:e1 STAR ftr:e2
-         {: RESULT = new Ast.Expr.Binary(Ast.Expr.BinaryOp.STAR, e1, e2); :}
+         {: RESULT = new Ast.Expr.Binary(Ast.Expr.BinaryOp.MUL, e1, e2); :}
          |
          term:e1 SLASH ftr:e2
-         {: RESULT = new Ast.Expr.Binary(Ast.Expr.BinaryOp.SLASH, e1, e2); :}
+         {: RESULT = new Ast.Expr.Binary(Ast.Expr.BinaryOp.DIV, e1, e2); :}
          |
          INTEGER_LITERAL:i
          {: RESULT = new Ast.Expr.Int(i); :}
@@ -276,10 +282,10 @@ aexpr ::= aexpr:e1 PLUS term:e2
           ;
 
 term ::= term:e1 STAR ftr:e2
-         {: RESULT = new Ast.Expr.Binary(Ast.Expr.BinaryOp.STAR, e1, e2); :}
+         {: RESULT = new Ast.Expr.Binary(Ast.Expr.BinaryOp.MUL, e1, e2); :}
          |
          term:e1 SLASH ftr:e2
-         {: RESULT = new Ast.Expr.Binary(Ast.Expr.BinaryOp.SLASH, e1, e2); :}
+         {: RESULT = new Ast.Expr.Binary(Ast.Expr.BinaryOp.DIV, e1, e2); :}
          |
          ftr:e
          {: RESULT = e; :}

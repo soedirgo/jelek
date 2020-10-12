@@ -17,3 +17,4 @@ gradle-app.setting
 .settings
 .classpath
 *.class
+.bin

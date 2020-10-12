@@ -1,17 +1,15 @@
 package jelek;
 
+import java.util.ArrayList;
 import java.util.List;
+import jelek.StaticCheck.StaticCheckException;
 
 class Ast {
     static class Program {
         final String _class = "Program";
-        Class main;
         List<Class> classes;
 
-        Program(Class main, List<Class> classes) {
-            this.main = main;
-            this.classes = classes;
-        }
+        Program(List<Class> classes) { this.classes = classes; }
     }
 
     static class Class {
@@ -27,35 +25,42 @@ class Ast {
         }
     }
 
-    static class Body {
-        final String _class = "Body";
-        final List<Var> vars;
-        final List<Stmt> stmts;
-
-        Body(List<Var> vars, List<Stmt> stmts) {
-            this.vars = vars;
-            this.stmts = stmts;
-        }
-    }
-
     static class Method {
         final String _class = "Method";
         final String id;
         final Type returnType;
         final List<Var> params;
-        final Body body;
+        final List<Var> vars;
+        final List<Stmt> stmts;
 
-        Method(String id, Type returnType, List<Var> params, Body body) {
+        Method(String id, Type returnType, List<Var> params, List<Var> vars,
+               List<Stmt> stmts) {
             this.id = id;
             this.returnType = returnType;
             this.params = params;
-            this.body = body;
+            this.vars = vars;
+            this.stmts = stmts;
         }
     }
 
     abstract static class Stmt {
+        final String _class = this.getClass().getName();
+
+        abstract <R> R accept(Visitor<R> visitor) throws StaticCheckException;
+
+        interface Visitor<R> {
+            R visitIf(Ast.Stmt.If stmt) throws StaticCheckException;
+            R visitWhile(Ast.Stmt.While stmt) throws StaticCheckException;
+            R visitReadln(Ast.Stmt.Readln stmt) throws StaticCheckException;
+            R visitPrintln(Ast.Stmt.Println stmt) throws StaticCheckException;
+            R visitAssign(Ast.Stmt.Assign stmt) throws StaticCheckException;
+            R visitFieldAssign(Ast.Stmt.FieldAssign stmt)
+                throws StaticCheckException;
+            R visitCall(Ast.Stmt.Call stmt) throws StaticCheckException;
+            R visitReturn(Ast.Stmt.Return stmt) throws StaticCheckException;
+        }
+
         static class If extends Stmt {
-            final String _class = "If";
             final Expr cond;
             final List<Stmt> thenStmts;
             final List<Stmt> elseStmts;
@@ -65,10 +70,14 @@ class Ast {
                 this.thenStmts = thenStmts;
                 this.elseStmts = elseStmts;
             }
+
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitIf(this);
+            }
         }
 
         static class While extends Stmt {
-            final String _class = "While";
             final Expr cond;
             final List<Stmt> stmts;
 
@@ -76,102 +85,175 @@ class Ast {
                 this.cond = cond;
                 this.stmts = stmts;
             }
+
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitWhile(this);
+            }
         }
 
         static class Readln extends Stmt {
-            final String _class = "Readln";
             final String id;
+            Var var;
 
             Readln(String id) { this.id = id; }
+
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitReadln(this);
+            }
         }
 
         static class Println extends Stmt {
-            final String _class = "Println";
             final Expr expr;
 
             Println(Expr expr) { this.expr = expr; }
+
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitPrintln(this);
+            }
         }
 
         static class Assign extends Stmt {
-            final String _class = "Assign";
-            final String assignee;
-            final Expr expr;
+            final String lhs;
+            final Expr rhs;
 
-            Assign(String assignee, Expr expr) {
-                this.assignee = assignee;
-                this.expr = expr;
+            Assign(String lhs, Expr rhs) {
+                this.lhs = lhs;
+                this.rhs = rhs;
+            }
+
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitAssign(this);
             }
         }
 
         static class FieldAssign extends Stmt {
-            final String _class = "FieldAssign";
-            final Expr atom;
-            final String field;
-            final Expr expr;
+            final Expr lhsExpr;
+            final String lhsField;
+            final Expr rhs;
 
-            FieldAssign(Expr atom, String field, Expr expr) {
-                this.atom = atom;
-                this.field = field;
-                this.expr = expr;
+            FieldAssign(Expr lhs, String lhsField, Expr rhs) {
+                this.lhsExpr = lhs;
+                this.lhsField = lhsField;
+                this.rhs = rhs;
+            }
+
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitFieldAssign(this);
             }
         }
 
         static class Call extends Stmt {
-            final String _class = "Call";
-            final Expr caller;
+            final Expr callee;
             final List<Expr> args;
 
-            Call(Expr caller, List<Expr> args) {
-                this.caller = caller;
+            Call(Expr callee, List<Expr> args) {
+                this.callee = callee;
                 this.args = args;
+            }
+
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitCall(this);
             }
         }
 
         static class Return extends Stmt {
-            final String _class = "Return";
             final Expr expr;
 
             Return(Expr expr) { this.expr = expr; }
+
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitReturn(this);
+            }
         }
     }
 
     abstract static class Expr {
+        final String _class = this.getClass().getName();
+        Type type;
+
+        abstract <R> R accept(Visitor<R> visitor) throws StaticCheckException;
+
+        interface Visitor<R> {
+            R visitStr(Ast.Expr.Str expr) throws StaticCheckException;
+            R visitInt(Ast.Expr.Int expr) throws StaticCheckException;
+            R visitBool(Ast.Expr.Bool expr) throws StaticCheckException;
+            R visitId(Ast.Expr.Id expr) throws StaticCheckException;
+            R visitUnary(Ast.Expr.Unary expr) throws StaticCheckException;
+            R visitBinary(Ast.Expr.Binary expr) throws StaticCheckException;
+            R visitDot(Ast.Expr.Dot expr) throws StaticCheckException;
+            R visitCall(Ast.Expr.Call expr) throws StaticCheckException;
+            R visitNew(Ast.Expr.New expr) throws StaticCheckException;
+            R visitThis(Ast.Expr.This expr) throws StaticCheckException;
+            R visitNull(Ast.Expr.Null expr) throws StaticCheckException;
+        }
+
         static class Str extends Expr {
-            final String _class = "Str";
             final String value;
 
             Str(String value) { this.value = value; }
+
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitStr(this);
+            }
         }
+
         static class Int extends Expr {
-            final String _class = "Int";
             Integer value;
 
             Int(Integer value) { this.value = value; }
+
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitInt(this);
+            }
         }
+
         static class Bool extends Expr {
-            final String _class = "Bool";
             final Boolean value;
 
             Bool(Boolean value) { this.value = value; }
+
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitBool(this);
+            }
         }
+
         static class Id extends Expr {
-            final String _class = "Id";
             final String id;
 
             Id(String id) { this.id = id; }
-        }
-        static class Unary extends Expr {
-            final String _class = "Unary";
-            final Expr e;
-            final UnaryOp op;
 
-            Unary(UnaryOp op, Expr e) {
-                this.e = e;
-                this.op = op;
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitId(this);
             }
         }
+
+        static class Unary extends Expr {
+            final Expr atom;
+            final UnaryOp op;
+
+            Unary(UnaryOp op, Expr atom) {
+                this.atom = atom;
+                this.op = op;
+            }
+
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitUnary(this);
+            }
+        }
+
         static class Binary extends Expr {
-            final String _class = "Binary";
             final Expr e1;
             final Expr e2;
             final BinaryOp op;
@@ -181,41 +263,75 @@ class Ast {
                 this.e2 = e2;
                 this.op = op;
             }
-        }
-        static class Dot extends Expr {
-            final String _class = "Dot";
-            Expr atom;
-            String id;
 
-            Dot(Expr atom, String id) {
-                this.atom = atom;
-                this.id = id;
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitBinary(this);
             }
         }
-        static class Call extends Expr {
-            final String _class = "Call";
+
+        static class Dot extends Expr {
             Expr atom;
+            String member;
+
+            Dot(Expr atom, String member) {
+                this.atom = atom;
+                this.member = member;
+            }
+
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitDot(this);
+            }
+        }
+
+        static class Call extends Expr {
+            Expr callee;
             List<Expr> args;
 
-            Call(Expr atom, List<Expr> args) {
-                this.atom = atom;
+            Call(Expr callee, List<Expr> args) {
+                this.callee = callee;
                 this.args = args;
             }
+
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitCall(this);
+            }
         }
+
         static class New extends Expr {
-            final String _class = "New";
             final String cname;
 
             New(String cname) { this.cname = cname; }
+
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitNew(this);
+            }
         }
-        static class This extends Expr { final String _class = "This"; }
-        static class Null extends Expr { final String _class = "Null"; }
+
+        static class This extends Expr {
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitThis(this);
+            }
+        }
+
+        static class Null extends Expr {
+            @Override
+            <R> R accept(Visitor<R> visitor) throws StaticCheckException {
+                return visitor.visitNull(this);
+            }
+        }
+
         static enum UnaryOp { NOT, NEG }
+
         static enum BinaryOp {
             PLUS,
             MINUS,
-            STAR,
-            SLASH,
+            MUL,
+            DIV,
             LT,
             GT,
             LEQ,
@@ -227,15 +343,82 @@ class Ast {
         }
     }
 
-    static class Type {
-        final String _class = "Type";
-        final String type;
+    abstract static class Type {
+        final java.lang.String _class = this.getClass().getName();
 
-        Type(String type) { this.type = type; }
+        public abstract boolean equals(Object o);
+
+        static class Int extends Type {
+            @Override
+            public boolean equals(Object o) {
+                return o instanceof Int;
+            }
+        }
+
+        static class Bool extends Type {
+            @Override
+            public boolean equals(Object o) {
+                return o instanceof Bool;
+            }
+        }
+
+        static class String extends Type {
+            @Override
+            public boolean equals(Object o) {
+                return o instanceof String;
+            }
+        }
+
+        static class Void extends Type {
+            @Override
+            public boolean equals(Object o) {
+                return o instanceof Void;
+            }
+        }
+
+        static class Class extends Type {
+            final java.lang.String name;
+
+            Class(java.lang.String name) { this.name = name; }
+
+            @Override
+            public boolean equals(Object o) {
+                return o instanceof Class && name.equals(((Class)o).name);
+            }
+        }
+
+        static class Function extends Type {
+            final List<Type> paramTypes;
+            final Type returnType;
+
+            Function(Method method) {
+                var paramTypes = new ArrayList<Type>();
+                for (var var : method.params) {
+                    paramTypes.add(var.type);
+                }
+
+                this.paramTypes = paramTypes;
+                this.returnType = method.returnType;
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                return o instanceof Function &&
+                    paramTypes.equals(((Function)o).paramTypes) &&
+                    returnType.equals(((Function)o).returnType);
+            }
+        }
+
+        static class Null extends Type {
+            @Override
+            public boolean equals(Object o) {
+                return o instanceof Null;
+            }
+        }
     }
 
     static class Var {
-        final String _class = "Var";
+        final String _class = this.getClass().getName();
         final Type type;
         final String id;
 

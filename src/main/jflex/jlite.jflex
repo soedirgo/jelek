@@ -47,7 +47,6 @@ Integer = \d+
   "while" { return symbol(sym.WHILE); }
   "readln" { return symbol(sym.READLN); }
   "println" { return symbol(sym.PRINTLN); }
-  "null" { return symbol(sym.NULL); }
   "this" { return symbol(sym.THIS); }
   "new" { return symbol(sym.NEW); }
 
@@ -88,14 +87,17 @@ Integer = \d+
   {Whitespace} { /* ignore */ }
 
   /* literals */
+  "true" { return symbol(sym.TRUE); }
+  "false" { return symbol(sym.FALSE); }
+  "null" { return symbol(sym.NULL); }
   {Id} { return symbol(sym.ID, yytext()); }
   {Integer} { return symbol(sym.INTEGER_LITERAL, Integer.parseInt(yytext())); }
+  \" { sb.setLength(0); yybegin(STRING); }
 }
 
 <STRING> {
   \"                             { yybegin(YYINITIAL);
-                                   return symbol(sym.STRING_LITERAL,
-                                   sb.toString()); }
+                                   return symbol(sym.STRING_LITERAL, sb.toString()); }
   [^\n\r\"\\]+                   { sb.append( yytext() ); }
   \\t                            { sb.append('\t'); }
   \\n                            { sb.append('\n'); }
