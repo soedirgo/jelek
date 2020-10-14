@@ -49,15 +49,14 @@ class Ast {
         abstract <R> R accept(Visitor<R> visitor) throws StaticCheckException;
 
         interface Visitor<R> {
-            R visitIf(Ast.Stmt.If stmt) throws StaticCheckException;
-            R visitWhile(Ast.Stmt.While stmt) throws StaticCheckException;
-            R visitReadln(Ast.Stmt.Readln stmt) throws StaticCheckException;
-            R visitPrintln(Ast.Stmt.Println stmt) throws StaticCheckException;
-            R visitAssign(Ast.Stmt.Assign stmt) throws StaticCheckException;
-            R visitFieldAssign(Ast.Stmt.FieldAssign stmt)
-                throws StaticCheckException;
-            R visitCall(Ast.Stmt.Call stmt) throws StaticCheckException;
-            R visitReturn(Ast.Stmt.Return stmt) throws StaticCheckException;
+            R visitIf(If stmt) throws StaticCheckException;
+            R visitWhile(While stmt) throws StaticCheckException;
+            R visitReadln(Readln stmt) throws StaticCheckException;
+            R visitPrintln(Println stmt) throws StaticCheckException;
+            R visitAssign(Assign stmt) throws StaticCheckException;
+            R visitFieldAssign(FieldAssign stmt) throws StaticCheckException;
+            R visitCall(Call stmt) throws StaticCheckException;
+            R visitReturn(Return stmt) throws StaticCheckException;
         }
 
         static class If extends Stmt {
@@ -94,7 +93,6 @@ class Ast {
 
         static class Readln extends Stmt {
             final String id;
-            Var var;
 
             Readln(String id) { this.id = id; }
 
@@ -176,22 +174,22 @@ class Ast {
 
     abstract static class Expr {
         final String _class = this.getClass().getName();
-        Type type;
+        Type type; // Populated during StaticCheck
 
         abstract <R> R accept(Visitor<R> visitor) throws StaticCheckException;
 
         interface Visitor<R> {
-            R visitStr(Ast.Expr.Str expr) throws StaticCheckException;
-            R visitInt(Ast.Expr.Int expr) throws StaticCheckException;
-            R visitBool(Ast.Expr.Bool expr) throws StaticCheckException;
-            R visitId(Ast.Expr.Id expr) throws StaticCheckException;
-            R visitUnary(Ast.Expr.Unary expr) throws StaticCheckException;
-            R visitBinary(Ast.Expr.Binary expr) throws StaticCheckException;
-            R visitDot(Ast.Expr.Dot expr) throws StaticCheckException;
-            R visitCall(Ast.Expr.Call expr) throws StaticCheckException;
-            R visitNew(Ast.Expr.New expr) throws StaticCheckException;
-            R visitThis(Ast.Expr.This expr) throws StaticCheckException;
-            R visitNull(Ast.Expr.Null expr) throws StaticCheckException;
+            R visitStr(Str expr) throws StaticCheckException;
+            R visitInt(Int expr) throws StaticCheckException;
+            R visitBool(Bool expr) throws StaticCheckException;
+            R visitId(Id expr) throws StaticCheckException;
+            R visitUnary(Unary expr) throws StaticCheckException;
+            R visitBinary(Binary expr) throws StaticCheckException;
+            R visitDot(Dot expr) throws StaticCheckException;
+            R visitCall(Call expr) throws StaticCheckException;
+            R visitNew(New expr) throws StaticCheckException;
+            R visitThis(This expr) throws StaticCheckException;
+            R visitNull(Null expr) throws StaticCheckException;
         }
 
         static class Str extends Expr {

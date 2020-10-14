@@ -131,7 +131,7 @@ class StaticCheck {
 
         Ast.Type lastReturnStmtType = new Ast.Type.Void();
         for (var stmt : method.stmts) {
-            var type = StmtChecker.check(stmt, env);
+            var type = StmtCheck.check(stmt, env);
             if (stmt instanceof Ast.Stmt.Return) {
                 lastReturnStmtType = type;
             }
@@ -145,19 +145,19 @@ class StaticCheck {
         }
     }
 
-    static class StmtChecker implements Ast.Stmt.Visitor<Ast.Type> {
+    static class StmtCheck implements Ast.Stmt.Visitor<Ast.Type> {
         final Env env;
 
-        StmtChecker(Env env) { this.env = new Env(env); }
+        StmtCheck(Env env) { this.env = new Env(env); }
 
         static Ast.Type check(Ast.Stmt stmt, Env env)
             throws StaticCheckException {
-            return stmt.accept(new StmtChecker(env));
+            return stmt.accept(new StmtCheck(env));
         }
 
         @Override
         public Ast.Type visitIf(Ast.Stmt.If stmt) throws StaticCheckException {
-            var condType = ExprChecker.check(stmt.cond, env);
+            var condType = ExprCheck.check(stmt.cond, env);
             if (!(condType instanceof Ast.Type.Bool)) {
                 throw new StaticCheckException(String.format(
                     "If statement condition type '%s' is not Bool",
@@ -165,11 +165,11 @@ class StaticCheck {
             }
 
             for (var _stmt : stmt.thenStmts) {
-                StmtChecker.check(_stmt, env);
+                StmtCheck.check(_stmt, env);
             }
 
             for (var _stmt : stmt.elseStmts) {
-                StmtChecker.check(_stmt, env);
+                StmtCheck.check(_stmt, env);
             }
 
             return new Ast.Type.Void();
@@ -178,7 +178,7 @@ class StaticCheck {
         @Override
         public Ast.Type visitWhile(Ast.Stmt.While stmt)
             throws StaticCheckException {
-            var condType = ExprChecker.check(stmt.cond, env);
+            var condType = ExprCheck.check(stmt.cond, env);
             if (!(condType instanceof Ast.Type.Bool)) {
                 throw new StaticCheckException(String.format(
                     "While statement condition type '%s' is not Bool",
@@ -186,7 +186,7 @@ class StaticCheck {
             }
 
             for (var _stmt : stmt.stmts) {
-                StmtChecker.check(_stmt, env);
+                StmtCheck.check(_stmt, env);
             }
 
             return new Ast.Type.Void();
@@ -210,7 +210,7 @@ class StaticCheck {
         @Override
         public Ast.Type visitPrintln(Ast.Stmt.Println stmt)
             throws StaticCheckException {
-            var exprType = ExprChecker.check(stmt.expr, env);
+            var exprType = ExprCheck.check(stmt.expr, env);
             if (!(exprType instanceof Ast.Type.Int ||
                   exprType instanceof Ast.Type.Bool ||
                   exprType instanceof Ast.Type.String)) {
@@ -226,7 +226,7 @@ class StaticCheck {
         public Ast.Type visitAssign(Ast.Stmt.Assign stmt)
             throws StaticCheckException {
             var lhsType = env.get(stmt.lhs);
-            var rhsType = ExprChecker.check(stmt.rhs, env);
+            var rhsType = ExprCheck.check(stmt.rhs, env);
 
             if (lhsType.getClass() != rhsType.getClass()) {
                 throw new StaticCheckException(String.format(
@@ -241,9 +241,9 @@ class StaticCheck {
         @Override
         public Ast.Type visitFieldAssign(Ast.Stmt.FieldAssign stmt)
             throws StaticCheckException {
-            var lhsType = ExprChecker.check(
+            var lhsType = ExprCheck.check(
                 new Ast.Expr.Dot(stmt.lhsExpr, stmt.lhsField), env);
-            var rhsType = ExprChecker.check(stmt.rhs, env);
+            var rhsType = ExprCheck.check(stmt.rhs, env);
 
             if (lhsType.getClass() != rhsType.getClass()) {
                 throw new StaticCheckException(String.format(
@@ -262,7 +262,7 @@ class StaticCheck {
             var args = stmt.args;
 
             var callExpr = new Ast.Expr.Call(callee, args);
-            ExprChecker.check(callExpr, env);
+            ExprCheck.check(callExpr, env);
 
             return new Ast.Type.Void();
         }
@@ -279,7 +279,7 @@ class StaticCheck {
                         "Must return a value in a method returning non-Void");
                 }
             } else {
-                var exprType = ExprChecker.check(expr, env);
+                var exprType = ExprCheck.check(expr, env);
                 if (exprType.getClass() != returnType.getClass()) {
                     throw new StaticCheckException(String.format(
                         "Type of return statement '%s' is not equal to return type '%s'",
@@ -292,14 +292,14 @@ class StaticCheck {
         }
     }
 
-    static class ExprChecker implements Ast.Expr.Visitor<Ast.Type> {
+    static class ExprCheck implements Ast.Expr.Visitor<Ast.Type> {
         final Env env;
 
-        ExprChecker(Env env) { this.env = new Env(env); }
+        ExprCheck(Env env) { this.env = new Env(env); }
 
         static Ast.Type check(Ast.Expr expr, Env env)
             throws StaticCheckException {
-            return expr.accept(new ExprChecker(env));
+            return expr.accept(new ExprCheck(env));
         }
 
         @Override
@@ -329,7 +329,7 @@ class StaticCheck {
         @Override
         public Ast.Type visitUnary(Ast.Expr.Unary expr)
             throws StaticCheckException {
-            var atomType = ExprChecker.check(expr.atom, env);
+            var atomType = ExprCheck.check(expr.atom, env);
 
             switch (expr.op) {
             case NEG:
@@ -355,8 +355,8 @@ class StaticCheck {
         @Override
         public Ast.Type visitBinary(Ast.Expr.Binary expr)
             throws StaticCheckException {
-            var e1Type = ExprChecker.check(expr.e1, env);
-            var e2Type = ExprChecker.check(expr.e2, env);
+            var e1Type = ExprCheck.check(expr.e1, env);
+            var e2Type = ExprCheck.check(expr.e2, env);
 
             switch (expr.op) {
             case PLUS:
@@ -410,7 +410,7 @@ class StaticCheck {
         @Override
         public Ast.Type visitDot(Ast.Expr.Dot expr)
             throws StaticCheckException {
-            var atomType = ExprChecker.check(expr.atom, env);
+            var atomType = ExprCheck.check(expr.atom, env);
             if (!(atomType instanceof Ast.Type.Class)) {
                 throw new StaticCheckException(
                     String.format("Cannot access field of type '%s'",
@@ -443,7 +443,7 @@ class StaticCheck {
             } else if (expr.callee instanceof Ast.Expr.Dot) {
                 // GlobalCall
                 var callee = (Ast.Expr.Dot)expr.callee;
-                var atomType = ExprChecker.check(callee.atom, env);
+                var atomType = ExprCheck.check(callee.atom, env);
                 if (!(atomType instanceof Ast.Type.Class)) {
                     throw new StaticCheckException(
                         String.format("Cannot access field of type '%s'",
@@ -465,7 +465,7 @@ class StaticCheck {
 
             var argTypes = new ArrayList<Ast.Type>();
             for (var arg : expr.args) {
-                argTypes.add(ExprChecker.check(arg, env));
+                argTypes.add(ExprCheck.check(arg, env));
             }
             if (!argTypes.equals(calleeType.paramTypes)) {
                 throw new StaticCheckException(
